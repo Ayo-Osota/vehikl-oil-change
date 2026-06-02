@@ -40,7 +40,7 @@ class ExampleTest extends TestCase
         $this->assertNotNull($oilCheck);
         $this->assertSame(89500.0, (float) $oilCheck->current_odometer);
         $this->assertSame(84000.0, (float) $oilCheck->last_change_odometer);
-        $this->assertSame('2025-12-01', $oilCheck->last_change_date->toDateString());
+        $this->assertSame('2025-12-01', Carbon::parse($oilCheck->last_change_date)->toDateString());
         $this->assertTrue($oilCheck->needs_change);
 
         $response->assertRedirect(route('oil-change.result', $oilCheck));
@@ -151,9 +151,10 @@ class ExampleTest extends TestCase
 
         $resultResponse
             ->assertOk()
-            ->assertSee('Oil change is due!')
-            ->assertSee('Driven 8000 km since last oil change (limit: 5,000 km).')
-            ->assertDontSee('months since last oil change (limit: 6 months).')
+            ->assertSee('Oil Change Required')
+            ->assertSee('This vehicle is not within the recommended maintenance interval.')
+            ->assertSee('8,000 km driven (limit: 5000 km)')
+            ->assertSee('6 months since last service (limit: 6 months)')
             ->assertSee('25,000 km')
             ->assertSee('17,000 km')
             ->assertSee('Dec 01, 2025')

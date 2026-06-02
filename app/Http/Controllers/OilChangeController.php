@@ -15,49 +15,51 @@ class OilChangeController extends Controller
     }
 
     public function check(Request $request)
-{
-    $validated = $request->validate([
-        'current_odometer' => ['required', 'numeric', 'min:0'],
-        'last_change_odometer' => ['required', 'numeric', 'min:0'],
-        'last_change_date' => ['required', 'date', 'before:today'],
-    ], [
-        'last_change_date.before' => 'The date of previous oil change must be in the past.',
-    ]);
-
-    if ($validated['current_odometer'] < $validated['last_change_odometer']) {
-        throw ValidationException::withMessages([
-            'current_odometer' => 'The current odometer must be greater than or equal to the odometer at previous oil change.',
+    {
+        $validated = $request->validate([
+            'current_odometer' => ['required', 'numeric', 'min:0'],
+            'last_change_odometer' => ['required', 'numeric', 'min:0'],
+            'last_change_date' => ['required', 'date', 'before:today'],
+        ], [
+            'last_change_date.before' => 'The date of previous oil change must be in the past.',
         ]);
+
+        if ($validated['current_odometer'] < $validated['last_change_odometer']) {
+            throw ValidationException::withMessages([
+                'current_odometer' => 'The current odometer must be greater than or equal to the odometer at previous oil change.',
+            ]);
+        }
+
+        $kmSinceChange = $validated['current_odometer'] - $validated['last_change_odometer'];
+
+        $monthsSinceChange = Carbon::parse($validated['last_change_date'])
+            ->diffInMonths(now());
+
+        $needsChange = $kmSinceChange > 5000 || $monthsSinceChange > 6;
+
+        $oilCheck = OilCheck::create([
+            'current_odometer' => $validated['current_odometer'],
+            'last_change_odometer' => $validated['last_change_odometer'],
+            'last_change_date' => $validated['last_change_date'],
+            'needs_change' => $needsChange,
+        ]);
+
+        return redirect()->route('oil-change.result', $oilCheck);
     }
-
-    $kmSinceChange = $validated['current_odometer'] - $validated['last_change_odometer'];
-
-    $monthsSinceChange = Carbon::parse($validated['last_change_date'])
-        ->diffInMonths(now());
-
-    $needsChange = $kmSinceChange > 5000 || $monthsSinceChange > 6;
-
-    $oilCheck = OilCheck::create([
-        'current_odometer' => $validated['current_odometer'],
-        'last_change_odometer' => $validated['last_change_odometer'],
-        'last_change_date' => $validated['last_change_date'],
-        'needs_change' => $needsChange,
-    ]);
-
-    return redirect()->route('oil-change.result', $oilCheck);
-}
 
     public function result(OilCheck $oilCheck)
     {
         $kmSinceChange = $oilCheck->current_odometer - $oilCheck->last_change_odometer;
-        $monthsSinceChange = $oilCheck->last_change_date->diffInMonths(Carbon::today());
+        $monthsSinceChange = Carbon::parse($oilCheck->last_change_date)->diffInMonths(Carbon::today());
+        $kmSinceChangeDisplay = (int) ceil((float) $kmSinceChange);
+        $monthsSinceChangeDisplay = (int) ceil((float) $monthsSinceChange);
 
         $reasons = [];
         if ($kmSinceChange > 5000) {
-            $reasons[] = "Driven {$kmSinceChange} km since last oil change (limit: 5,000 km).";
+            $reasons[] = "Driven {$kmSinceChangeDisplay} km since last oil change (limit: 5,000 km).";
         }
         if ($monthsSinceChange > 6) {
-            $reasons[] = "{$monthsSinceChange} months since last oil change (limit: 6 months).";
+            $reasons[] = "{$monthsSinceChangeDisplay} months since last oil change (limit: 6 months).";
         }
 
         return view('oil-change-result', [
