@@ -181,6 +181,13 @@ svg {
     border-radius: 0.25rem;
 }
 
+@media (max-width: 767px) {
+    .custom-input {
+        /* iOS Safari zooms focused inputs below 16px */
+        font-size: 16px;
+    }
+}
+
 .custom-input::placeholder {
     color: #c2c2c2;
     font-family: var(--ff-serif);
